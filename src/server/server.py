@@ -3,18 +3,25 @@ import socket
 import threading
 import time
 
-"""
-Class to represent a client type
-"""
+
 class Client:
+    """
+    Class to represent a client type
+    """
+
     def __init__(self, c_ip, c_port, c_nick, c_conn):
         self.ip = c_ip
         self.port = c_port
         self.nick = c_nick,
         self.conn = c_conn
 
-
     def send_peer_list(self, peers):
+        """
+        Sends a list of connected Clients to self
+
+        :param peers: List of Clients
+        """
+
         try:
             print("Sending list of connected peers to client...")
             message = "LIST:" + ":".join(
@@ -62,7 +69,7 @@ class Server:
                 buffer += message_chunk
                 while "\r\n" in buffer:
                     message, buffer = buffer.split("\r\n", 1)
-                    self.process_message(message, client)
+                    self._process_message(message, client)
         except Exception as e:
             print(f"Error managing client: {e}")
         finally:
@@ -102,7 +109,7 @@ class Server:
         except Exception as e:
             print(f"Error registering client: {e}")
 
-    def broadcast_message(self, message: str):
+    def _broadcast_message(self, message: str):
         try:
             message_parts = message.strip().split(":")
             assert len(message_parts) >= 4
@@ -113,15 +120,19 @@ class Server:
         except Exception as e:
             print(f"Error broadcasting message: {e}")
 
-    def process_message(self, message: str, client: Client):
+    def _process_message(self, message: str, client: Client):
         if message.startswith("REGISTER:"):
             self._register_client(message, client)
         elif message.startswith("BROADCAST:"):
-            self.broadcast_message(message)
+            self._broadcast_message(message)
         else:
             print(f"Invalid message recieved: {message}")
 
     def stop(self):
+        """
+        Stops the Server
+        """
+
         self.running = False
         self.server_socket.close()
 
