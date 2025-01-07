@@ -1,147 +1,78 @@
-# P2P Chat Application
+# P2P Group Chat Protocol
 
-## How Communication Works
+## Protocol Overview
 
-The communication system leverages the following mechanisms:
+### **1. TCP: Client-Server Communication**
+- **REGISTER**:
+  - **Purpose**: Register a new client with the server.
+  - **Format**: `REGISTER:Nickname:IP-Address:UDP-Port\r\n`
+  - **Description**:
+    - Sent by the client to register itself.
+    - Includes the client's nickname, IP address, and UDP port.
 
-    Server:
-        Acts as a registry where clients can register themselves.
-        Maintains and shares a list of active peers with all connected clients.
-        Relays broadcast messages to all registered clients.
+- **BROADCAST**:
+  - **Purpose**: Send a broadcast message to all connected clients.
+  - **Format**: `BROADCAST:Nickname:Length:Message\r\n`
+  - **Description**:
+    - The client sends a message to the server.
+    - The server forwards the message to all other clients.
 
-    Client:
-        Registers with the server and retrieves the list of other connected peers.
-        Can send and receive broadcast messages through the server.
-        Initiates direct communication with other peers for private chat using UDP and TCP.
+- **LIST**:
+  - **Purpose**: Retrieve the current list of participants.
+  - **Format**: `LIST:x times - Nickname:IP-Address:UDP-Port\r\n`
+  - **Description**:
+    - Sent by the server to the client after registration.
 
-## Code Breakdown
-### Server
+- **UPDATE**:
+  - **Purpose**: Notify clients about participant list changes (e.g., join or leave).
+  - **Format**: `UPDATE:Action(JOIN, LEAVE):Nickname:IP-Address:UDP-Port\r\n`
+  - **Description**:
+    - The server notifies all clients about changes to the participant list.
 
-The server provides centralized functionality, including:
+- **ERROR**:
+  - **Purpose**: Communicate errors.
+  - **Format**: `ERROR:Length:Message\r\n`
+  - **Description**:
+    - The server informs the client about errors.
 
-    Managing a list of connected clients.
-    Relaying broadcast messages.
-    Notifying peers about join/leave events.
+---
 
-Key Functions:
+### **2. UDP: Client-Client Communication**
+- **INIT**:
+  - **Purpose**: Initialize a direct peer-to-peer connection.
+  - **Format**: `INIT:Secret:TCP-Port\r\n`
+  - **Description**:
+    - A client sends its TCP port information (for P2P) to another client.
 
-    _register_client:
-        Handles the REGISTER messages from clients.
-        Updates the list of connected peers and notifies others of the new client.
+- **ACK**:
+  - **Purpose**: Acknowledge a P2P connection request.
+  - **Format**: `ACK:INIT:Secret\r\n`
+  - **Description**:
+    - The receiving client confirms the receipt of the `INIT` message.
 
-    _broadcast_message:
-        Distributes broadcast messages received from clients to all other clients.
+---
 
-    _notify_everyone:
-        Sends a specified message to all connected clients.
+### **3. TCP: Client-Client Communication**
+- **CHAT**:
+  - **Purpose**: Send a chat message in a P2P session.
+  - **Format**: `CHAT:Length:Message\r\n`
+  - **Description**:
+    - The message length is specified to ensure correct processing.
 
-    Socket Listener:
-        Continuously listens for incoming client connections using the accept method of the server socket.
+---
 
-### Client
+## Implementation Details
 
-The client implements both centralized and decentralized communication:
+### **Server (`server.py`)**
+- **Responsibilities**:
+  - Manage the participant list.
+  - Forward broadcast messages.
+  - Notify clients of join/leave events.
 
-    Centralized Communication:
-        Registers itself with the server and receives a list of peers.
-        Broadcasts messages to all peers via the server.
-    Decentralized Communication:
-        Sends direct messages to peers using a combination of UDP (to share connection details) and TCP (for message exchange).
-
-Key Components:
-
-    Registration:
-        Sends a REGISTER message to the server containing its username, IP, and UDP port.
-        Receives the list of active peers in response.
-
-    Broadcast Messaging:
-        Sends broadcast messages to the server, which relays them to other connected clients.
-
-    Direct Messaging:
-        Initiates a private chat with a peer by first exchanging TCP port details over UDP.
-        Establishes a TCP connection to exchange private messages.
-
-Threads:
-
-    UDP Listener:
-        Monitors incoming UDP messages for peer details.
-    TCP Listener:
-        Listens for incoming TCP connections from peers.
-    Server Listener:
-        Handles messages from the server.
-    Peer Message Handler:
-        Manages incoming private messages from peers.
-
-### Chat Workflow:
-
-    Initialization:
-        A client registers with the server, providing its IP and UDP port.
-        The server responds with the list of active peers.
-
-    Broadcasting:
-        The client sends a message to the server for broadcast.
-        The server relays the message to all connected peers.
-
-    Private Chat:
-        A client sends its TCP port details to a peer via UDP.
-        The peer uses the provided details to establish a TCP connection.
-        The two peers exchange messages directly over the TCP connection.
-
-    Disconnecting:
-        When a client disconnects, it notifies the server, which updates the peer list and informs other clients.
-
-### Sample Communication Flow
-1. Registration
-
-    Client:
-        Sends REGISTER:<username>:<IP>:<UDP port> to the server.
-    Server:
-        Acknowledges registration and broadcasts the new client details to all peers.
-
-2. Broadcast
-
-    Client:
-        Sends BROADCAST:<username>:<message length>:<message> to the server.
-    Server:
-        Relays the message to all other clients.
-
-3. Private Chat
-
-    Initiating Client:
-        Sends its TCP port details to the target peer using UDP.
-    Target Peer:
-        Establishes a TCP connection to the initiating client.
-    Both Peers:
-        Exchange messages over the established TCP connection.
-
-## Usage
-### Server
-
-    Run the server:
-
-    python server.py
-
-    The server listens on port 1337 by default.
-
-### Client
-
-    Run the client:
-
-    python client.py
-
-    Provide the server IP, port, username, client IP, and UDP port when prompted.
-    Use the following commands:
-        /broadcast <message>: Send a broadcast message.
-        /start <username>: Initiate a private chat.
-        /chat <username> <message>: Send a private message.
-        /quit: Disconnect from the server and peers.
-
-### Communication Protocols
-
-    UDP:
-        Lightweight, used for exchanging connection details (e.g., TCP port numbers).
-        Faster but less reliable compared to TCP.
-
-    TCP:
-        Reliable, used for private chat and server communication.
-        Ensures messages are delivered in order.
+### **Client (`client.py`)**
+- **Responsibilities**:
+  - Register with the server.
+  - Retrieve the participant list.
+  - Send and receive broadcast messages.
+  - Initiate P2P connections via UDP.
+  - Directly chat with other clients over TCP.
